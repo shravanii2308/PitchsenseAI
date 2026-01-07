@@ -193,10 +193,6 @@ function App() {
 
           {!analysis && !isRecording && !audioBlob && <Instructions />}
         </div>
-
-        <footer className="footer">
-          <p>Built with Whisper AI & Vercel AI SDK • PitchSense Assignment</p>
-        </footer>
       </div>
     </div>
   );
