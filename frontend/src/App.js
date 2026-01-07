@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import "./App.css";
 import axios from "axios";
-import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -13,6 +12,14 @@ import {
   Legend,
   Filler,
 } from "chart.js";
+
+import RecordingControls from "./components/RecordingControls";
+import MetricsDisplay from "./components/MetricsDisplay";
+import WPMChart from "./components/WPMChart";
+import FillerWordsHeatmap from "./components/FillerWordsHeatmap";
+import PausesTimeline from "./components/PausesTimeline";
+import TranscriptionDisplay from "./components/TranscriptionDisplay";
+import Instructions from "./components/Instructions";
 
 ChartJS.register(
   CategoryScale,
@@ -149,283 +156,47 @@ function App() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const wpmChartData = {
-    labels: wpmHistory.map((item) => `Recording ${item.time + 1}`),
-    datasets: [
-      {
-        label: "Words Per Minute",
-        data: wpmHistory.map((item) => item.wpm),
-        borderColor: "rgb(59, 130, 246)",
-        backgroundColor: "rgba(59, 130, 246, 0.1)",
-        fill: true,
-        tension: 0.4,
-        pointRadius: 6,
-        pointHoverRadius: 8,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: true,
-        labels: {
-          color: "#e5e7eb",
-          font: {
-            size: 14,
-            family: "Inter, system-ui, sans-serif",
-          },
-        },
-      },
-      tooltip: {
-        backgroundColor: "rgba(17, 24, 39, 0.9)",
-        titleColor: "#e5e7eb",
-        bodyColor: "#e5e7eb",
-        borderColor: "rgba(59, 130, 246, 0.3)",
-        borderWidth: 1,
-        padding: 12,
-        displayColors: false,
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: "rgba(255, 255, 255, 0.05)",
-        },
-        ticks: {
-          color: "#9ca3af",
-          font: {
-            size: 12,
-          },
-        },
-      },
-      x: {
-        grid: {
-          color: "rgba(255, 255, 255, 0.05)",
-        },
-        ticks: {
-          color: "#9ca3af",
-          font: {
-            size: 12,
-          },
-        },
-      },
-    },
-  };
-
   return (
     <div className="app-container">
       <div className="content-wrapper">
         <header className="header">
           <div className="logo-section">
             <div className="logo-icon">🎤</div>
-            <h1 className="title">Pitchsense AI</h1>
+            <h1 className="title">PitchSense AI</h1>
           </div>
           <p className="subtitle">Real-Time Speech-to-Score Engine</p>
         </header>
 
         <div className="main-content">
-          <div className="card control-card">
-            <h2 className="card-title">Recording Control</h2>
-
-            <div className="recording-status">
-              {isRecording && (
-                <div className="status-indicator">
-                  <span className="recording-dot"></span>
-                  <span className="recording-text">
-                    Recording: {formatTime(recordingTime)}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="button-group">
-              {!isRecording && !audioBlob && (
-                <button
-                  onClick={startRecording}
-                  className="btn btn-primary"
-                  data-testid="start-recording-button"
-                >
-                  <span className="btn-icon">🎙️</span>
-                  Start Recording
-                </button>
-              )}
-
-              {isRecording && (
-                <button
-                  onClick={stopRecording}
-                  className="btn btn-danger"
-                  data-testid="stop-recording-button"
-                >
-                  <span className="btn-icon">⏹️</span>
-                  Stop Recording
-                </button>
-              )}
-
-              {audioBlob && !isProcessing && (
-                <>
-                  <button
-                    onClick={analyzeAudio}
-                    className="btn btn-success"
-                    data-testid="analyze-button"
-                  >
-                    <span className="btn-icon">📊</span>
-                    Analyze Speech
-                  </button>
-                  <button
-                    onClick={reset}
-                    className="btn btn-secondary"
-                    data-testid="reset-button"
-                  >
-                    <span className="btn-icon">🔄</span>
-                    New Recording
-                  </button>
-                </>
-              )}
-
-              {isProcessing && (
-                <div
-                  className="processing-indicator"
-                  data-testid="processing-indicator"
-                >
-                  <div className="spinner"></div>
-                  <span>Analyzing speech...</span>
-                </div>
-              )}
-            </div>
-
-            {error && (
-              <div className="error-message" data-testid="error-message">
-                ⚠️ {error}
-              </div>
-            )}
-          </div>
+          <RecordingControls
+            isRecording={isRecording}
+            audioBlob={audioBlob}
+            isProcessing={isProcessing}
+            error={error}
+            recordingTime={recordingTime}
+            onStartRecording={startRecording}
+            onStopRecording={stopRecording}
+            onAnalyze={analyzeAudio}
+            onReset={reset}
+            formatTime={formatTime}
+          />
 
           {analysis && (
             <>
-              <div className="metrics-grid">
-                <div className="metric-card" data-testid="wpm-metric">
-                  <div className="metric-icon">⚡</div>
-                  <div className="metric-content">
-                    <div className="metric-label">Words Per Minute</div>
-                    <div className="metric-value">{analysis.wpm}</div>
-                  </div>
-                </div>
-
-                <div className="metric-card" data-testid="word-count-metric">
-                  <div className="metric-icon">📝</div>
-                  <div className="metric-content">
-                    <div className="metric-label">Total Words</div>
-                    <div className="metric-value">{analysis.word_count}</div>
-                  </div>
-                </div>
-
-                <div className="metric-card" data-testid="filler-words-metric">
-                  <div className="metric-icon">🚫</div>
-                  <div className="metric-content">
-                    <div className="metric-label">Filler Words</div>
-                    <div className="metric-value">
-                      {analysis.filler_words?.length || 0}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="metric-card" data-testid="pauses-metric">
-                  <div className="metric-icon">⏸️</div>
-                  <div className="metric-content">
-                    <div className="metric-label">Pauses Detected</div>
-                    <div className="metric-value">
-                      {analysis.pauses?.length || 0}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {wpmHistory.length > 0 && (
-                <div className="card chart-card" data-testid="wpm-chart">
-                  <h2 className="card-title">Real-Time Speed Graph</h2>
-                  <div className="chart-container">
-                    <Line data={wpmChartData} options={chartOptions} />
-                  </div>
-                </div>
-              )}
-
-              {analysis.filler_words && analysis.filler_words.length > 0 && (
-                <div className="card" data-testid="filler-words-heatmap">
-                  <h2 className="card-title">Filler Word Heatmap</h2>
-                  <div className="heatmap-container">
-                    {analysis.filler_words.map((filler, index) => (
-                      <div key={index} className="heatmap-item">
-                        <span className="heatmap-word">"{filler.word}"</span>
-                        <span className="heatmap-time">
-                          at {filler.timestamp.toFixed(1)}s
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {analysis.pauses && analysis.pauses.length > 0 && (
-                <div className="card" data-testid="pauses-timeline">
-                  <h2 className="card-title">Pause Duration Analysis</h2>
-                  <div className="pauses-container">
-                    {analysis.pauses.map((pause, index) => (
-                      <div key={index} className="pause-item">
-                        <div
-                          className="pause-bar"
-                          style={{
-                            width: `${Math.min(pause.duration * 50, 300)}px`,
-                          }}
-                        >
-                          <span className="pause-duration">
-                            {pause.duration.toFixed(2)}s
-                          </span>
-                        </div>
-                        <span className="pause-timestamp">
-                          at {pause.start.toFixed(1)}s
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div
-                className="card transcription-card"
-                data-testid="transcription-text"
-              >
-                <h2 className="card-title">Transcription</h2>
-                <div className="transcription-content">
-                  {transcription || "No transcription available"}
-                </div>
-              </div>
+              <MetricsDisplay analysis={analysis} />
+              <WPMChart wpmHistory={wpmHistory} />
+              <FillerWordsHeatmap fillerWords={analysis.filler_words} />
+              <PausesTimeline pauses={analysis.pauses} />
+              <TranscriptionDisplay transcription={transcription} />
             </>
           )}
 
-          {/* Instructions */}
-          {!analysis && !isRecording && !audioBlob && (
-            <div className="card instructions-card">
-              <h2 className="card-title">How to Use</h2>
-              <ol className="instructions-list">
-                <li>Click "Start Recording" to begin capturing your speech</li>
-                <li>Speak naturally into your microphone</li>
-                <li>Click "Stop Recording" when finished</li>
-                <li>Click "Analyze Speech" to get your results</li>
-                <li>
-                  View your WPM, filler words, pauses, and full transcription
-                </li>
-              </ol>
-              <div className="info-note">
-                <strong>Note:</strong> Make sure to grant microphone access when
-                prompted.
-              </div>
-            </div>
-          )}
+          {!analysis && !isRecording && !audioBlob && <Instructions />}
         </div>
+
+        <footer className="footer">
+          <p>Built with Whisper AI & Vercel AI SDK • PitchSense Assignment</p>
+        </footer>
       </div>
     </div>
   );
