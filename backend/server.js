@@ -21,7 +21,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options("/api/*", cors(corsOptions));
 
 app.use(express.json());
 
