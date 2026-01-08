@@ -13,7 +13,16 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY || "gsk_free_default_key",
 });
 
-app.use(cors());
+const corsOptions = {
+  origin: "https://pitchsense-ai.vercel.app",
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
+
 app.use(express.json());
 
 const FILLER_WORDS = [
