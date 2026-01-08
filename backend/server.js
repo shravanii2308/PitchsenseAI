@@ -3,24 +3,22 @@ const multer = require("multer");
 const cors = require("cors");
 const Groq = require("groq-sdk");
 const fs = require("fs");
-const path = require("path");
 require("dotenv").config();
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
 
 const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY || "gsk_free_default_key",
+  apiKey: process.env.GROQ_API_KEY,
 });
 
-const corsOptions = {
-  origin: "https://pitchsense-ai.vercel.app",
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-};
-
-app.use(cors(corsOptions));
+app.use(
+  cors({
+    origin: "https://pitchsense-ai.vercel.app",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
 
 app.use(express.json());
 
@@ -61,37 +59,28 @@ function analyzeText(text, segments) {
     .toLowerCase()
     .split(/\s+/)
     .filter((w) => w.length > 0);
+
   const wordCount = words.length;
   const wpm = totalDuration > 0 ? (wordCount / totalDuration) * 60 : 0;
 
   const fillerOccurrences = [];
+
   segments.forEach((segment) => {
     const segmentText = segment.text.toLowerCase();
-    const segmentWords = segmentText.split(/\s+/);
 
     FILLER_WORDS.forEach((filler) => {
-      const fillerParts = filler.split(" ");
-      if (fillerParts.length === 1) {
-        if (segmentWords.includes(filler)) {
-          fillerOccurrences.push({
-            word: filler,
-            timestamp: segment.start,
-            end: segment.end,
-          });
-        }
-      } else {
-        if (segmentText.includes(filler)) {
-          fillerOccurrences.push({
-            word: filler,
-            timestamp: segment.start,
-            end: segment.end,
-          });
-        }
+      if (segmentText.includes(filler)) {
+        fillerOccurrences.push({
+          word: filler,
+          timestamp: segment.start,
+          end: segment.end,
+        });
       }
     });
   });
 
   const pauses = [];
+
   for (let i = 0; i < segments.length - 1; i++) {
     const gap = segments[i + 1].start - segments[i].end;
     if (gap > 0.5) {
@@ -106,13 +95,13 @@ function analyzeText(text, segments) {
   return {
     wpm: Math.round(wpm * 100) / 100,
     filler_words: fillerOccurrences,
-    pauses: pauses,
+    pauses,
     total_duration: Math.round(totalDuration * 100) / 100,
     word_count: wordCount,
   };
 }
 
-app.get("/api/", (req, res) => {
+app.get("/api", (req, res) => {
   res.json({ message: "PitchSense AI - Real-Time Speech-to-Score Engine" });
 });
 
@@ -123,7 +112,7 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
     }
 
     const filePath = req.file.path;
-    const newFilePath = filePath + ".webm";
+    const newFilePath = `${filePath}.webm`;
 
     fs.renameSync(filePath, newFilePath);
 
@@ -145,21 +134,15 @@ app.post("/api/transcribe", upload.single("file"), async (req, res) => {
       ...analysis,
     });
   } catch (error) {
-    console.error("Transcription error:", error);
-    console.error("Error details:", {
-      message: error.message,
-      stack: error.stack,
-      response: error.response?.data,
-    });
-    if (req.file && req.file.path) {
+    if (req.file?.path) {
       try {
         fs.unlinkSync(req.file.path);
-        fs.unlinkSync(req.file.path + ".webm");
-      } catch (e) {}
+        fs.unlinkSync(`${req.file.path}.webm`);
+      } catch {}
     }
+
     res.status(500).json({
       error: error.message,
-      details: error.response?.data || "No additional details",
     });
   }
 });
